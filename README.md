@@ -1,201 +1,512 @@
+
 # Paper-to-Presentation & Viva Agent
 
-A local-first, privacy-preserving Agentic AI research assistant and thesis defense workspace designed for academic synthesis, conference slide authoring, and oral defense viva preparation.
+A local-first, privacy-preserving Agentic AI research assistant and thesis defense workspace designed for academic research, presentation generation, technical explanations, and viva preparation.
 
-Built with **Python 3.11**, **Streamlit**, **LangChain (LCEL)**, **Ollama (`llama3.2`)**, **ChromaDB**, **PyPDF**, and **python-pptx**.
-
----
-
-## 1. System Architecture
-
-The application implements an **Agentic Retrieval-Augmented Generation (RAG)** pipeline orchestrated entirely on local infrastructure with zero cloud dependencies or paid APIs.
-
-```
-                   User Upload (PDF / TXT / MD - Multi-Document Support)
-                                │
-                                ▼
-                       Document Ingestion
-                    (PyPDFLoader / TextLoader)
-                                │
-                                ▼
-                        Semantic Chunking
-          RecursiveCharacterTextSplitter (900 chars, 150 overlap)
-                                │
-                                ▼
-                        Vector Embedding
-              OllamaEmbeddings (nomic-embed-text)
-                                │
-                                ▼
-                   ChromaDB Ephemeral Store
-                                │
-       ┌────────────────────────┴────────────────────────┐
-       │                                                 │
-       ▼                                                 ▼
-User Specialist Query                            Interactive Defense Chat
-       │                                                 │
-       ▼                                                 ▼
-Intent Router (safe_route)                       ChromaDB Retrieval
-(ChatPromptTemplate | ChatOllama | JSON Schema)          │
-       │                                                 ▼
-  ┌────┴────────────────────────┐                Academic Explainer
-  │                             │                        │
-  ▼                             ▼                        ▼
-retrieve = True           retrieve = False        Grounded Answer
-  │                             │                 (with Citations & Pages)
-  ▼                             │
-ChromaDB Similarity Search      │
-(top-k chunks + distance scores)│
-  │                             │
-  └──────────────┬──────────────┘
-                 │
-                 ▼
-       Specialist Agent Team
- (ChatPromptTemplate | ChatOllama | StrOutputParser)
-   ├── 1. Summarizer Agent (Executive Research Digest)
-   ├── 2. Concept-Extractor Agent (Foundations & Intuitions)
-   ├── 3. Slide-Generator Agent (8-12 Slides + PPTX Download)
-   ├── 4. Viva Agent (6 Tiers + Oral Exam Practice Simulator)
-   └── 5. Academic Explainer Agent (Grounded Defense Inquiry)
-                 │
-                 ▼
-       Academic SaaS Workspace
-   ├── Dashboard & Live Infrastructure Telemetry
-   ├── Research Studio (Multi-File Ingestion & Specialist Agents)
-   ├── Presentation Studio (Slide Deck & PowerPoint .pptx Export)
-   ├── Viva Examination Studio (Syllabus & Interactive Oral Defense Simulator)
-   ├── AI Research Chat (Conversational Grounded Q&A with Citations)
-   ├── Document Explorer (Keyword Filter & Semantic Retrieval Sandbox)
-   └── Architecture & Diagnostics (Pipeline Flow & Criteria Scorecard)
-```
+Built using **Python 3.11**, **Streamlit**, **LangChain (LCEL)**, **Ollama (Llama 3.2)**, **ChromaDB**, **PyPDF**, and **python-pptx**.
 
 ---
 
-## 2. Seven Mandatory Acceptance Criteria Mapping
+## 1. Project Overview
 
-| # | Acceptance Criterion | Technical Implementation in Codebase |
+Paper-to-Presentation & Viva Agent is an AI-powered academic assistant that helps students understand research papers and prepare for academic presentations and viva examinations.
+
+The application uses locally hosted language models and Retrieval-Augmented Generation (RAG) to process research documents and generate relevant academic content.
+
+### Key Features
+
+- Research paper summarization.
+- Technical concept extraction and explanations.
+- AI-powered presentation generation.
+- Downloadable PowerPoint presentations.
+- Automated viva question generation.
+- Interactive viva examination simulator.
+- Context-aware academic question answering.
+- Semantic document search.
+- Local AI processing using Ollama.
+
+---
+
+## 2. System Architecture
+
+The application implements an Agentic Retrieval-Augmented Generation (RAG) pipeline using local infrastructure.
+
+```text
+              USER UPLOAD
+             (PDF / TXT / MD)
+                    |
+                    v
+             DOCUMENT INGESTION
+                    |
+                    v
+              TEXT EXTRACTION
+                    |
+                    v
+              SEMANTIC CHUNKING
+          (RecursiveCharacterTextSplitter)
+                    |
+                    v
+              VECTOR EMBEDDINGS
+             (OllamaEmbeddings)
+                    |
+                    v
+             CHROMADB VECTOR STORE
+                    |
+                    v
+              INTENT ROUTER
+                    |
+          +---------+---------+
+          |                   |
+          v                   v
+    SPECIALIST QUERY     ACADEMIC CHAT
+          |                   |
+          v                   v
+    RAG RETRIEVAL       SEMANTIC SEARCH
+          |                   |
+          v                   v
+    SPECIALIST AGENTS   GROUNDED ANSWERS
+          |
+    +-----+------+-------+-------+
+    |     |      |       |       |
+    v     v      v       v       v
+ SUMMARY CONCEPT SLIDES  VIVA  EXPLAINER
+    |     |      |       |       |
+    +-----+------+-------+-------+
+                    |
+                    v
+              FINAL OUTPUT
+         SUMMARY / PPTX / VIVA / Q&A
+```
+
+---
+
+## 3. Seven Mandatory Acceptance Criteria
+
+| # | Acceptance Criterion | Technical Implementation |
 |---|---|---|
-| **A** | **LLM Integration** | Integrates local `llama3.2` via `langchain_ollama.ChatOllama` with bounded context window (`num_ctx=4096`) for low-latency CPU/GPU execution. Includes live Ollama connection health monitoring. |
-| **B** | **Interactive GUI** | Modern, dark-themed Streamlit workspace with 7 dedicated views: Dashboard, Research Studio, Presentation Studio, Viva Examination Studio, AI Research Chat, Document Explorer, and Architecture Diagnostics. |
-| **C** | **Prompt Engineering** | Strict separation of system prompts and user prompts. Employs role-based personas, few-shot JSON formatting schema, and strict grounding constraints forbidding factual hallucinations. |
-| **D** | **LangChain Core & LCEL** | Composed with `ChatPromptTemplate.from_messages([('system', ...), ('human', ...)])` and compiled via the LangChain Expression Language pipe syntax (`prompt \| llm \| StrOutputParser()`). |
-| **E** | **Agentic RAG** | ChromaDB semantic similarity search retrieves top-k passages with metadata (page numbers, chunk IDs, and distance scores). The intent router dynamically decides if retrieval is necessary. |
-| **F** | **Intent Detection & Routing** | `safe_route()` employs an LLM classifier with few-shot schema enforcement to categorize intent (`summary`, `concepts`, `slides`, `viva`, `explain`) with deterministic fallback and document-presence gating. |
-| **G** | **Vector Database** | In-memory ChromaDB vector store powered by `nomic-embed-text` embeddings, isolated per session to prevent cross-document leakage and file-locking issues on Windows. |
+| A | LLM Integration | Ollama and ChatOllama |
+| B | Interactive GUI | Streamlit interface |
+| C | Prompt Engineering | Role-based prompts and structured outputs |
+| D | LangChain Core & LCEL | LangChain prompt pipelines |
+| E | Agentic RAG | ChromaDB semantic retrieval |
+| F | Intent Detection & Routing | Intent classification and routing |
+| G | Vector Database | ChromaDB with Ollama embeddings |
+
+### A. LLM Integration
+
+- Integrates locally hosted Llama 3.2.
+- Uses LangChain's ChatOllama integration.
+- Supports local CPU/GPU inference depending on hardware.
+- Monitors Ollama connectivity.
+
+### B. Interactive GUI
+
+The Streamlit application provides an interactive academic workspace with dedicated sections for:
+
+- Dashboard
+- Research Studio
+- Presentation Studio
+- Viva Examination Studio
+- AI Research Chat
+- Document Explorer
+- Architecture Diagnostics
+
+### C. Prompt Engineering
+
+- Separate system and user prompts.
+- Role-based AI agent instructions.
+- Structured output generation.
+- Context-aware responses.
+- Grounding instructions to reduce hallucinations.
+
+### D. LangChain Core & LCEL
+
+Uses LangChain Expression Language to construct AI processing pipelines.
+
+Example:
+
+```python
+chain = prompt | llm | StrOutputParser()
+```
+
+### E. Agentic RAG
+
+- Extracts content from uploaded research documents.
+- Splits documents into smaller chunks.
+- Generates vector embeddings.
+- Retrieves relevant passages using semantic similarity.
+- Provides context-grounded academic responses.
+
+### F. Intent Detection & Routing
+
+The intent router identifies the user's requested task and directs it to the appropriate specialist agent.
+
+Supported task categories include:
+
+- Summary
+- Concepts
+- Slides
+- Viva
+- Explain
+
+### G. Vector Database
+
+- Uses ChromaDB for vector storage.
+- Uses Ollama embeddings.
+- Supports semantic similarity search.
+- Maintains document context for retrieval.
 
 ---
 
-## 3. Specialist Agent Team
+## 4. Specialist AI Agent Team
 
-### 1. Summarizer Agent
-Generates an exhaustive, structured executive summary:
-- Background & Research Motivation
-- Core Problem Formulation
-- Research Objectives & Novel Contributions
-- Methodology & Architectural Overview
-- Experimental Evaluation & Key Metrics
-- Limitations & Threats to Validity
-- Conclusion & Research Implications
+### 1. Research Summarizer Agent
 
-### 2. Concept-Extractor Agent
-Extracts 4 to 6 foundational concepts with pedagogical clarity:
-- Academic Formal Definition
-- Student-Friendly Intuition (analogies in plain English)
-- Technical & Mathematical Formulations
-- Application in This Paper
-- Architectural Significance
+Generates structured research paper summaries covering:
 
-### 3. Slide-Generator Agent (Presentation Studio)
-Creates an 8 to 12 slide conference or defense presentation:
-- Structured progression (Problem, Related Work, Method, Setup, Results, Limitations, Conclusion)
-- 3 to 5 concise bullet points per slide
-- Spoken **Speaker Notes** for the presenter during the defense
-- Visual / Diagram Recommendation for each slide
-- **Direct Downloadable PowerPoint (`.pptx`)** output generated via `python-pptx` with embedded notes!
+- Background and research motivation.
+- Core problem formulation.
+- Research objectives.
+- Novel contributions.
+- Methodology.
+- Experimental evaluation.
+- Results and key findings.
+- Limitations.
+- Conclusion and future scope.
 
-### 4. Viva Agent (Viva Examination Studio)
-Prepares students for thesis defense examinations across 6 tiers:
-- **Tier 1:** Basic & Foundational Concepts
-- **Tier 2:** Problem Domain & Literature Justification
-- **Tier 3:** Methodology, Algorithms & Architecture
-- **Tier 4:** Experimental Setup, Datasets & Metrics
-- **Tier 5:** Results, Ablation Studies & Validation
-- **Tier 6:** Critical Defense, Limitations & Future Scope
-- **Interactive Oral Defense Practice Simulator**: Evaluates student typed answers in real-time with an AI examiner score (0-10), constructive feedback, omitted concepts, and improved delivery tips.
+### 2. Concept Extractor Agent
 
-### 5. Academic Explainer Agent (AI Research Chat)
-Provides interactive, cited explanations for specific user inquiries with strict information boundaries and document page numbers (`[Page X, Chunk Y]`).
+Identifies important technical concepts and explains them in student-friendly language.
+
+Provides:
+
+- Academic definitions.
+- Simple explanations.
+- Real-world analogies.
+- Technical formulations.
+- Applications in the research paper.
+- Architectural significance.
+
+### 3. Presentation Generator Agent
+
+Automatically generates academic presentation content.
+
+Features include:
+
+- Structured slide progression.
+- Research problem and objectives.
+- Related work.
+- Proposed methodology.
+- System architecture.
+- Experimental results.
+- Limitations and conclusion.
+- Presenter speaker notes.
+- Visual and diagram recommendations.
+- Downloadable PowerPoint (.pptx) output.
+
+### 4. Viva Preparation Agent
+
+Prepares students for academic viva examinations through multiple difficulty levels.
+
+#### Six Viva Preparation Tiers
+
+- **Tier 1:** Basic and foundational concepts.
+- **Tier 2:** Problem domain and literature justification.
+- **Tier 3:** Methodology, algorithms and architecture.
+- **Tier 4:** Experimental setup, datasets and metrics.
+- **Tier 5:** Results, validation and evaluation.
+- **Tier 6:** Critical defence, limitations and future scope.
+
+#### Interactive Viva Simulator
+
+- Generates viva questions.
+- Accepts student answers.
+- Evaluates responses using AI.
+- Provides feedback.
+- Identifies missing technical concepts.
+- Suggests improved answers.
+- Provides an AI examiner score.
+
+### 5. Academic Explainer Agent
+
+Provides contextual explanations and answers based on the uploaded research paper.
+
+Features:
+
+- Academic question answering.
+- Context-aware explanations.
+- Relevant passage retrieval.
+- Source-based answers.
+- Page and chunk references where available.
 
 ---
 
-## 4. Setup and Installation (Windows)
+## 5. Technology Stack
+
+| Technology | Purpose |
+|---|---|
+| Python 3.11 | Core programming language |
+| Streamlit | Interactive user interface |
+| LangChain | AI application framework |
+| LCEL | AI processing pipelines |
+| Ollama | Local LLM execution |
+| Llama 3.2 | Language model |
+| Nomic Embed Text | Text embeddings |
+| ChromaDB | Vector database |
+| PyPDF | PDF text extraction |
+| RapidOCR | Scanned document OCR |
+| python-pptx | PowerPoint generation |
+
+---
+
+## 6. Project Structure
+
+```text
+Paper-to-Presentation-Viva-Agent/
+│
+├── app.py
+│
+├── core/
+│   ├── __init__.py
+│   ├── agents.py
+│   ├── config.py
+│   ├── document_loader.py
+│   ├── ollama_service.py
+│   ├── presentation_exporter.py
+│   ├── router.py
+│   ├── vector_store.py
+│   └── viva_simulator.py
+│
+├── requirements.txt
+│
+├── sample_research_paper.pdf
+│
+├── create_test_pdf.py
+├── test_ocr_pipeline.py
+├── test_system.py
+├── test_workflow.py
+├── verify_submission_ready.py
+│
+├── .gitignore
+├── README.md
+├── setup_windows.bat
+└── run_windows.bat
+```
+
+---
+
+## 7. Installation and Setup
 
 ### Prerequisites
-- **Python 3.11**
-- **Ollama** installed and running ([Download Ollama](https://ollama.com))
 
-### 1. Pull Required Local Models
+- Python 3.11 (64-bit recommended).
+- Ollama installed.
+- Windows 10/11, macOS or Linux.
+- Sufficient RAM for local AI models.
+
+### Step 1: Install Ollama
+
+Download Ollama:
+
+https://ollama.com/
+
+### Step 2: Download Required Models
+
 Open Command Prompt or PowerShell:
+
 ```bash
 ollama pull llama3.2
 ollama pull nomic-embed-text
 ```
 
-Verify that models are available:
+Verify the installed models:
+
 ```bash
 ollama list
 ```
 
-### 2. Activate Virtual Environment
-In the project directory `D:\paper_viva_agent`:
+### Step 3: Create a Python Virtual Environment
+
+Navigate to the project directory:
+
 ```bash
-.\venv311\Scripts\activate
+python -m venv .venv
 ```
 
-### 3. Run Automated Acceptance Tests
+Activate the environment on Windows:
+
+```powershell
+.venv\Scripts\activate
+```
+
+### Step 4: Install Dependencies
+
+```bash
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+### Step 5: Run the Application
+
+```bash
+python -m streamlit run app.py
+```
+
+The application will open at:
+
+http://localhost:8501
+
+---
+
+## 8. How to Use the Application
+
+1. Start the Ollama service.
+2. Launch the Streamlit application.
+3. Upload a research paper in PDF, TXT or Markdown format.
+4. Click the document processing option.
+5. Wait for document extraction and vector indexing.
+6. Select the required specialist AI agent.
+7. Enter your task or question.
+8. Generate the AI response.
+9. Review the generated academic content.
+10. Download the presentation when using the presentation generator.
+
+---
+
+## 9. College Project Demonstration
+
+The following demonstration workflow can be used during a project review.
+
+### Demonstration 1: Dashboard
+
+- Show the application dashboard.
+- Demonstrate Ollama connectivity.
+- Explain the local AI architecture.
+- Introduce the available specialist agents.
+
+### Demonstration 2: Research Paper Processing
+
+- Upload a research paper.
+- Start document processing.
+- Demonstrate text extraction.
+- Explain semantic chunking.
+- Show vector indexing.
+
+### Demonstration 3: Specialist AI Agents
+
+- Generate a research summary.
+- Extract technical concepts.
+- Explain the research methodology.
+- Demonstrate AI-generated academic responses.
+
+### Demonstration 4: Presentation Generation
+
+- Open Presentation Studio.
+- Generate presentation content.
+- Review slide titles and bullet points.
+- Review speaker notes.
+- Download the PowerPoint presentation.
+
+### Demonstration 5: Viva Preparation
+
+- Open Viva Examination Studio.
+- Generate viva questions.
+- Review questions across different difficulty levels.
+- Answer questions using the interactive simulator.
+- Review AI feedback and evaluation.
+
+### Demonstration 6: Academic Research Chat
+
+- Ask questions about the uploaded research paper.
+- Demonstrate contextual retrieval.
+- Review relevant source passages.
+- Explain how RAG improves response relevance.
+
+---
+
+## 10. Testing and Validation
+
+Run Python syntax checks:
+
+```bash
+python -m compileall -q app.py core
+```
+
+Run the system integration test:
+
 ```bash
 python test_system.py
 ```
 
-### 4. Launch the Streamlit Application
+Run the OCR pipeline test:
+
 ```bash
-streamlit run app.py
+python test_ocr_pipeline.py
 ```
-The application will launch in your default web browser at `http://localhost:8501`.
+
+Run the complete workflow test:
+
+```bash
+python test_workflow.py
+```
+
+**Note:** Integration and workflow tests require Ollama to be running with the required models installed. A successful syntax check alone does not guarantee that the complete application works.
 
 ---
 
-## 5. College Project Demonstration Script
+## 11. Privacy and Security
 
-Follow these steps for a live project demonstration:
+- Uses locally hosted Ollama models.
+- Does not require paid LLM API keys for its default local workflow.
+- Processes research documents locally.
+- Uses an in-memory ChromaDB vector store.
+- Keeps API credentials out of source code.
+- Uses document-based retrieval for contextual responses.
 
-1. **Dashboard & Telemetry**:
-   - Show the live infrastructure KPI cards (Ollama connected, `llama3.2` active, `nomic-embed-text` active).
-   - Point out that processing runs 100% locally on the host machine without external API keys or cloud subscriptions.
+**Note:** Local processing depends on the configured application and its dependencies. Verify that no optional external services are enabled before describing the application as entirely offline.
 
-2. **Multi-Document Ingestion**:
-   - In **Research Studio**, upload a research paper (`.pdf`, `.txt`, or `.md`).
-   - Click **Process & Build RAG Index**.
-   - Show the real-time progress bar and indexing summary (document count, chunk count, and character volume).
+---
 
-3. **Specialist Agent Execution**:
-   - Select **Concept Extractor Agent** and click **Run Specialist Agent**.
-   - Review the extracted concepts, mathematical formulations, and student-friendly analogies.
-   - Open **Agent Intent Routing & Classification Details** to demonstrate LLM intent routing and retrieval decisions.
+## 12. Limitations
 
-4. **Presentation Studio & PowerPoint Export**:
-   - Navigate to **Presentation Studio**.
-   - Click **Generate Complete Presentation Deck**.
-   - Review the 8-12 structured slides with bullet points, spoken Speaker Notes, and diagram recommendations.
-   - Click **Download PowerPoint (.pptx)** and open the generated file in PowerPoint or a presentation viewer to show the custom 16:9 theme and embedded speaker notes!
+- AI-generated content may contain inaccurate information.
+- Response quality depends on the selected language model.
+- Large documents may require additional processing time.
+- Scanned PDFs depend on OCR quality.
+- Local inference requires sufficient hardware resources.
+- The current Streamlit upload workflow processes one document at a time.
+- Generated presentations should be reviewed before academic use.
 
-5. **Viva Examination Studio & Interactive Simulator**:
-   - Navigate to **Viva Examination Studio**.
-   - Review the 6-tier examination syllabus with model defense answers.
-   - Switch to **Interactive Oral Exam Simulator**.
-   - Rehearse answering a question, submit the response, and review the AI Examiner's score (0-10), feedback on omitted technical concepts, and defense strategy.
+---
 
-6. **Grounded AI Research Chat & Document Explorer**:
-   - In **AI Research Chat**, ask a targeted question and inspect the cited page numbers.
-   - In **Document Explorer**, test the **Semantic Retrieval Sandbox** to demonstrate ChromaDB vector distance scoring.
-#   P a p e r - t o - P r e s e n t a t i o n - V i v a - A g e n t  
- 
+## 13. Future Enhancements
+
+- Multi-document research analysis.
+- Advanced presentation themes.
+- Automatic architecture diagram generation.
+- More advanced viva evaluation.
+- Voice-based viva interaction.
+- Multilingual academic explanations.
+- Export to additional document formats.
+- Persistent research history.
+- Improved citation and reference management.
+
+---
+
+## 14. Conclusion
+
+Paper-to-Presentation & Viva Agent demonstrates how Agentic AI, Retrieval-Augmented Generation, local language models and vector databases can be combined to simplify academic research and presentation preparation.
+
+By integrating multiple specialist AI agents into a single application, the system helps students understand complex research papers, generate presentation content and prepare for technical viva examinations.
+
+The project demonstrates practical applications of Large Language Models, prompt engineering, LangChain, semantic search, vector databases and interactive AI systems.
+
+---
+
+## 15. Credits and Licensing
+
+This project may incorporate code or ideas from other contributors.
+
+All original authors and contributors should receive appropriate attribution. Obtain permission to reuse or redistribute third-party code and retain applicable license notices.
+
+Add a software license only after confirming that you have the right to distribute the project under that license.
